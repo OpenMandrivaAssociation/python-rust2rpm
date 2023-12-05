@@ -1,0 +1,173 @@
+diff -up rust2rpm-v25.0.3/docs/rust2rpm.1.asciidoc.1~ rust2rpm-v25.0.3/docs/rust2rpm.1.asciidoc
+--- rust2rpm-v25.0.3/docs/rust2rpm.1.asciidoc.1~	2023-12-05 14:50:04.000000000 +0100
++++ rust2rpm-v25.0.3/docs/rust2rpm.1.asciidoc	2023-12-05 15:23:13.001641899 +0100
+@@ -120,7 +120,7 @@ need to be explicitly specified.
+   dependencies results in broken metadata. Please file bug reports for cases
+   like this (including the name and version of the affected crate).
+ 
+-*-t, --target={plain,fedora,mageia,opensuse}*::
++*-t, --target={plain,fedora,mageia,openmandriva,opensuse}*::
+   Write spec file tailored to the specified distribution target. The default
+   value is determined by the contents of _os-release(5)_.
+ 
+diff -up rust2rpm-v25.0.3/rust2rpm/cli.py.1~ rust2rpm-v25.0.3/rust2rpm/cli.py
+--- rust2rpm-v25.0.3/rust2rpm/cli.py.1~	2023-12-05 14:50:04.000000000 +0100
++++ rust2rpm-v25.0.3/rust2rpm/cli.py	2023-12-05 15:23:13.001641899 +0100
+@@ -36,7 +36,7 @@ def get_parser() -> argparse.ArgumentPar
+         "-t",
+         "--target",
+         action="store",
+-        choices=("plain", "fedora", "mageia", "opensuse"),
++        choices=("plain", "fedora", "mageia", "openmandriva", "opensuse"),
+         default=default_target,
+         help="Distribution target",
+     )
+diff -up rust2rpm-v25.0.3/rust2rpm/conf.py.1~ rust2rpm-v25.0.3/rust2rpm/conf.py
+--- rust2rpm-v25.0.3/rust2rpm/conf.py.1~	2023-12-05 14:50:04.000000000 +0100
++++ rust2rpm-v25.0.3/rust2rpm/conf.py	2023-12-05 15:23:13.005641940 +0100
+@@ -233,7 +233,7 @@ class IniConf:
+         merged = conf[target]
+ 
+         # validate configuration file
+-        valid_targets = ["fedora", "mageia", "opensuse", "plain"]
++        valid_targets = ["fedora", "mageia", "openmandriva", "opensuse", "plain"]
+         valid_keys = [
+             "summary",
+             "supported-arches",
+diff -up rust2rpm-v25.0.3/rust2rpm/generator.py.1~ rust2rpm-v25.0.3/rust2rpm/generator.py
+--- rust2rpm-v25.0.3/rust2rpm/generator.py.1~	2023-12-05 14:50:04.000000000 +0100
++++ rust2rpm-v25.0.3/rust2rpm/generator.py	2023-12-05 15:25:24.378993420 +0100
+@@ -27,6 +27,7 @@ RUST_PACKAGING_DEPS: dict[int, str] = {
+ RUST_PACKAGING_TARGET_MIN: dict[str, int] = {
+     "fedora": 24,
+     "mageia": 21,
++    "openmandriva": 24,
+     "opensuse": 21,
+     "plain": 21,
+ }
+@@ -64,6 +65,7 @@ def template_args_fedora(date: Optional[
+     kwargs["include_build_requires"] = False
+     kwargs["include_provides"] = False
+     kwargs["include_requires"] = False
++    kwargs["make_changelog_entry"] = auto_changelog_entry
+ 
+     if rpmautospec:
+         kwargs["rpm_release"] = "%autorelease"
+@@ -87,6 +89,7 @@ def template_args_mageia(date: Optional[
+     kwargs["include_build_requires"] = True
+     kwargs["include_provides"] = False
+     kwargs["include_requires"] = False
++    kwargs["make_changelog_entry"] = auto_changelog_entry
+ 
+     kwargs["rpm_release"] = "%mkrel 1"
+     kwargs["rpm_group"] = "Development/Rust"
+@@ -102,12 +105,36 @@ def template_args_mageia(date: Optional[
+     return kwargs
+ 
+ 
++def template_args_openmandriva(date: Optional[time.struct_time], packager: Optional[str]) -> dict:
++    kwargs: dict[str, str | bool] = dict()
++
++    kwargs["include_build_requires"] = True
++    kwargs["include_provides"] = True
++    kwargs["include_requires"] = True
++    # OpenMandriva uses "git log" instead of rpm changelogs
++    kwargs["make_changelog_entry"] = False
++
++    kwargs["rpm_release"] = "1"
++    kwargs["rpm_group"] = "Development/Rust"
++
++    rpm_changelog_date_format = "%a %b %d %Y"
++    if date:
++        kwargs["rpm_changelog_date"] = time.strftime(rpm_changelog_date_format, date)
++    else:
++        kwargs["rpm_changelog_date"] = time.strftime(rpm_changelog_date_format)
++
++    kwargs["rpm_changelog_packager"] = packager or "OpenMandriva Team <info@openmandriva.org>"
++
++    return kwargs
++
++
+ def template_args_opensuse(date: Optional[time.struct_time], packager: Optional[str]) -> dict:
+     kwargs: dict[str, str | bool] = dict()
+ 
+     kwargs["include_build_requires"] = True
+     kwargs["include_provides"] = False
+     kwargs["include_requires"] = False
++    kwargs["make_changelog_entry"] = auto_changelog_entry
+ 
+     kwargs["spec_copyright_year"] = time.strftime("%Y")
+     kwargs["rpm_release"] = "0"
+@@ -130,6 +157,7 @@ def template_args_plain(date: Optional[t
+     kwargs["include_build_requires"] = True
+     kwargs["include_provides"] = True
+     kwargs["include_requires"] = True
++    kwargs["make_changelog_entry"] = auto_changelog_entry
+ 
+     kwargs["rpm_release"] = "1%{?dist}"
+ 
+@@ -316,7 +344,6 @@ def spec_render_crate(
+         "use_vendor_tarball": vendor_tarball is not None,
+         "use_relative_license_paths": relative_license_paths,
+         "use_rpmautospec": rpmautospec,
+-        "make_changelog_entry": auto_changelog_entry,
+     }
+ 
+     match target:
+@@ -324,6 +351,8 @@ def spec_render_crate(
+             template_args_target = template_args_fedora(date, packager, rpmautospec)
+         case "mageia":
+             template_args_target = template_args_mageia(date, packager)
++        case "openmandriva":
++            template_args_target = template_args_openmandriva(date, packager)
+         case "opensuse":
+             template_args_target = template_args_opensuse(date, packager)
+         case "plain":
+@@ -482,7 +511,6 @@ def spec_render_project(
+         # Parameters derived from command-line flags
+         "use_vendor_tarball": vendor_tarball is not None,
+         "use_rpmautospec": rpmautospec,
+-        "make_changelog_entry": auto_changelog_entry,
+     }
+ 
+     match target:
+@@ -490,6 +518,8 @@ def spec_render_project(
+             template_args_target = template_args_fedora(date, packager, rpmautospec)
+         case "mageia":
+             template_args_target = template_args_mageia(date, packager)
++        case "openmandriva":
++            template_args_target = template_args_openmandriva(date, packager)
+         case "opensuse":
+             template_args_target = template_args_opensuse(date, packager)
+         case "plain":
+@@ -639,7 +669,6 @@ def spec_render_workspace(
+         # Parameters derived from command-line flags
+         "use_vendor_tarball": vendor_tarball is not None,
+         "use_rpmautospec": rpmautospec,
+-        "make_changelog_entry": auto_changelog_entry,
+     }
+ 
+     match target:
+@@ -647,6 +676,8 @@ def spec_render_workspace(
+             template_args_target = template_args_fedora(date, packager, rpmautospec)
+         case "mageia":
+             template_args_target = template_args_mageia(date, packager)
++        case "openmandriva":
++            template_args_target = template_args_openmandriva(date, packager)
+         case "opensuse":
+             template_args_target = template_args_opensuse(date, packager)
+         case "plain":
+diff -up rust2rpm-v25.0.3/rust2rpm/sysinfo.py.1~ rust2rpm-v25.0.3/rust2rpm/sysinfo.py
+--- rust2rpm-v25.0.3/rust2rpm/sysinfo.py.1~	2023-12-05 14:50:04.000000000 +0100
++++ rust2rpm-v25.0.3/rust2rpm/sysinfo.py	2023-12-05 15:23:13.005641940 +0100
+@@ -33,7 +33,9 @@ def get_default_target() -> str:
+     os_like = os_release.get("ID_LIKE", "").split()
+ 
+     # Order matters here!
+-    if "mageia" in (os_id, *os_like):
++    if "openmandriva" in (os_id, *os_like):
++        return "openmandriva"
++    elif "mageia" in (os_id, *os_like):
+         return "mageia"
+     elif "fedora" in (os_id, *os_like):
+         return "fedora"

@@ -1,7 +1,9 @@
 Name:		python-rust2rpm
-Version:	24.3.1
+Version:	25.0.3
 Release:	1
 Source0:	https://pagure.io/fedora-rust/rust2rpm/archive/v%{version}/rust2rpm-v%{version}.tar.gz
+Patch0:		rust2rpm-25.0.3-openmandriva.patch
+Patch1:		rust2rpm-25.0.3-openmandriva-notupstreamable.patch
 Summary:	Tool for packaging rust libraries in rpm packages
 URL:		https://pypi.org/project/rust2rpm/
 License:	MIT
