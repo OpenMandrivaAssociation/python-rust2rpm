@@ -9,6 +9,7 @@ URL:		https://codeberg.org/rust2rpm/rust2rpm
 License:	MIT
 Group:		Development/Python
 BuildRequires:	python%{pyver}dist(pip)
+BuildRequires:	python%{pyver}dist(setuptools)
 BuildSystem:	python
 BuildArch:	noarch
 
