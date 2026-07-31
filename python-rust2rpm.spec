@@ -1,9 +1,9 @@
 Name:		python-rust2rpm
-Version:	26.1.1
+Version:	27.0.1
 Release:	1
 Source0:	https://codeberg.org/rust2rpm/rust2rpm/archive/v%{version}.tar.gz
-Patch0:		rust2rpm-25.0.3-openmandriva.patch
-Patch1:		rust2rpm-25.0.3-openmandriva-notupstreamable.patch
+# dropped (no longer applies): Patch0:		rust2rpm-25.0.3-openmandriva.patch
+# dropped (no longer applies): Patch1:		rust2rpm-25.0.3-openmandriva-notupstreamable.patch
 Summary:	Tool for packaging rust libraries in rpm packages
 URL:		https://codeberg.org/rust2rpm/rust2rpm
 License:	MIT
