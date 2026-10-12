@@ -1,6 +1,6 @@
 Name:		python-rust2rpm
 Version:	27.0.1
-Release:	1
+Release:	2
 Source0:	https://codeberg.org/rust2rpm/rust2rpm/archive/v%{version}.tar.gz
 # dropped (no longer applies): Patch0:		rust2rpm-25.0.3-openmandriva.patch
 # dropped (no longer applies): Patch1:		rust2rpm-25.0.3-openmandriva-notupstreamable.patch
